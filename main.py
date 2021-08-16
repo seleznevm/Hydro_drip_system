@@ -1,5 +1,4 @@
-#123
-import time
+from time import localtime
 from machine import I2C, Pin
 import gc
 import ssd1306
@@ -7,10 +6,10 @@ from umqtt.simple import MQTTClient
 from ntptime import settime
 global mode
 mode = "initialization"
-tank_L1 = Pin(34, Pin.IN)
-tank_L1_status = tank_L1.value()
-tank_L2 = Pin(35, Pin.IN)
-tank_L2_status = tank_L2.value()
+L1 = Pin(34, Pin.IN)
+L1_status = L1.value()
+L2 = Pin(35, Pin.IN)
+L2_status = L2.value()
 pump = Pin(32, Pin.OUT, value=0)
 light = Pin(33, Pin.OUT, value=0)
 
@@ -25,11 +24,11 @@ def update_time():
     except(OSError):
         pub_msg("SMA_status/log", "time_sync_error")
         pass
-    Time = time.localtime()
+    time = localtime()
     global h
-    h = Time[3] + 3
+    h = time[3] + 3
     global m
-    m = Time[4]
+    m = time[4]
 
 def clear_screen():
     display.fill(0)
@@ -39,7 +38,7 @@ def display_main():
     clear_screen()
     display.text("mode: "+str(mode), 1,1)
     display.text("Pump: "+str(pump.value()),1,10)
-    display.text("L1 level: " + str(tank_L1_status), 1, 20)
+    display.text("L1 level: " + str(L1_status), 1, 20)
     display.show()
 
 def pub_msg(topic, msg):
@@ -60,21 +59,21 @@ def light_control():
     pass
 
 def watering_cycle():
-    global tank_L1_status
-    tank_L1_status = tank_L1.value() # check the water level in the bottom tank
-    if tank_L1_status != 0 and 22 > h > 9:
+    global L1_status
+    L1_status = L1.value() # check the water level in the bottom tank
+    if L1_status != 0 and 22 > h > 9:
         # put the start time into the DB
         global mode
         mode = "watering" # update the mode value to "watering"
         pump.on() # turn on the water pump
         pub_msg("SMA_pump", 1)
-    elif tank_L1_status == 0:
+    elif L1_status == 0:
         pub_msg("SMA_status/L1_level", "0") # send msg about the low water level
     # measure what time takes to finish the full cycle and
     pass
 
 def system_check():
-    tank_L1_status = tank_L1.value()
+    tank_L1_status = L1.value()
     if tank_L1_status == 0: pub_msg("SMA_status/L1_level", "0")
     else: pub_msg("SMA_status/L1_level", "1")
     pub_msg("SMA_status/system_time", str(h)+":"+str(m))
@@ -85,7 +84,7 @@ def main():
     display_main()
     if mode != "watering" or "draining":
         watering_cycle() # run watering cycle
-    tank_L1_status = tank_L1.value() #check the bottom tank level
+    tank_L1_status = L1.value() #check the bottom tank level
     if tank_L1_status == 0:  # if water level sensor in the bottom tank = 0 then turn off the pump
         pump.off() 
 
