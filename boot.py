@@ -1,8 +1,8 @@
-#123
 import network
 from machine import I2C, Pin
 import gc
 import ssd1306
+
 APP_NAME = 'MiKate2'
 APP_PWD = 'yaslujukate'
 i2c = I2C(1, sda=Pin(21), scl=Pin(22))
@@ -13,7 +13,6 @@ def clear_screen():
     display.show()
 
 def do_connect():
-    import network
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     if not wlan.isconnected():
