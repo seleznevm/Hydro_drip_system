@@ -10,19 +10,19 @@ L1 = Pin(34, Pin.IN)
 L1_status = L1.value()
 L2 = Pin(35, Pin.IN)
 L2_status = L2.value()
-pump = Pin(32, Pin.OUT, value=1)
-light = Pin(33, Pin.OUT, value=1)
+pump = Pin(32, Pin.OUT, value=0)
+light = Pin(33, Pin.OUT, value=0)
 
 i2c = I2C(1, sda=Pin(21), scl=Pin(22))
 display = ssd1306.SSD1306_I2C(128, 32, i2c) # 14 chars for a row
 
-client = MQTTClient(client_id = "HSControllerSMA", server = "185.213.2.21", user = "jRveM9BFtx0YKH2zPy4vg07mBVkCMFtTmPWWMnr5KhTjOJIs5DN9rJlSuti7YCO8") # self, client_id, server, port=0, user=None, password=None, keepalive=0, ssl=False, ssl_params={}
+client = MQTTClient(client_id = "HSControllerSMA", server = "185.213.2.21", user = "S2mP9JgLQWjkp5D7mwIgNe6R9h3By7xfZHUWe1vVLF5YyyVKSrQuvKbuR2TgXelK") # self, client_id, server, port=0, user=None, password=None, keepalive=0, ssl=False, ssl_params={}
 
 def update_time():
     try:
         settime()
     except(OSError):
-        pub_msg("SMA_status/log", "time_sync_error")
+        pub_msg("log", "time_sync_error")
         pass
     time = localtime()
     global h
@@ -32,13 +32,6 @@ def update_time():
 
 def clear_screen():
     display.fill(0)
-    display.show()
-
-def display_main():
-    clear_screen()
-    display.text("mode: "+str(mode), 1,1)
-    display.text("Pump: "+str(pump.value()),1,10)
-    display.text("L1 level: " + str(L1_status), 1, 20)
     display.show()
 
 def pub_msg(topic, msg):
@@ -52,31 +45,44 @@ def pub_msg(topic, msg):
         display.text("error", 5, 20)
         display.show()
         pass
-    gc.collect()
 
 def light_control():
     pass
 
 def watering_cycle():
     global L1_status
+    global mode
     L1_status = L1.value() # check the water level in the bottom tank
-    if L1_status != 0 and 22 > h > 9:
+    if L1_status != 0 and 22 > h > 9: # TODO: took hours of the dawn and sunset from the WEB and put here
         # put the start time into the DB
-        global mode
         mode = "watering" # update the mode value to "watering"
         pump.on() # turn on the water pump
-        pub_msg("SMA_pump", 1)
+        pub_msg("pump/state", 1)
     elif L1_status == 0:
-        pub_msg("SMA_status/L1_level", "0") # send msg about the low water level
+        pub_msg("water_level/L1", "0") # send msg about the low water level
     # measure what time takes to finish the full cycle and
     pass
 
+def system_check():
+    global h
+    global m
+    L1_status = L1.value()
+    L2_status = L2.value()
+    pump_state = pump.value()
+    light_state = light.value()
+    if L1_status == 0 and pump_state == True:
+        pump.off() # switch off the pump if no water in L1
+    client.connect(clean_session=True)
+    pub_msg("water_level/L1", L1_status)
+    pub_msg("water_level/L2", L2_status)
+    pub_msg("pump/state", pump_state)
+    pub_msg("light/state", light_state)
+
 def main():
-    global mode
     update_time()
-    display_main()
+    system_check()
 
 if __name__ == '__main__':
-    pub_msg("SMA_status", mode)
+    pub_msg("mode", mode)
     while True:
         main()
